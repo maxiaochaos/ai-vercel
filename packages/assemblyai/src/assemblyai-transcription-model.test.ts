@@ -31,8 +31,10 @@ const server = createTestServer({
 describe('doGenerate', () => {
   function prepareJsonResponse({
     headers,
+    transcript,
   }: {
     headers?: Record<string, string>;
+    transcript?: Record<string, unknown>;
   } = {}) {
     server.urls['https://api.assemblyai.com/v2/transcript'].response = {
       type: 'json-value',
@@ -262,6 +264,7 @@ describe('doGenerate', () => {
         error: 'error',
         dual_channel: false,
         speed_boost: true,
+        ...transcript,
       },
     };
   }
@@ -613,6 +616,105 @@ describe('doGenerate', () => {
         w => w.type === 'other' && w.message.includes('languageDetection'),
       ),
     ).toBe(true);
+  });
+
+  it('should pass languageCodes for code switching', async () => {
+    prepareJsonResponse();
+
+    const result = await provider
+      .transcription('universal-3-5-pro')
+      .doGenerate({
+        audio: audioData,
+        mediaType: 'audio/wav',
+        providerOptions: {
+          assemblyai: { languageCodes: ['en', 'es'] },
+        },
+      });
+
+    const requestBody = await server.calls[1].requestBodyJson;
+    expect(requestBody).toMatchObject({
+      speech_models: ['universal-3-5-pro'],
+      language_codes: ['en', 'es'],
+    });
+    expect(requestBody.language_code).toBeUndefined();
+    expect(requestBody.language_detection).toBeUndefined();
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('should keep mapping languageCode to language_code', async () => {
+    prepareJsonResponse();
+
+    await provider.transcription('universal-3-5-pro').doGenerate({
+      audio: audioData,
+      mediaType: 'audio/wav',
+      providerOptions: {
+        assemblyai: { languageCode: 'es' },
+      },
+    });
+
+    const requestBody = await server.calls[1].requestBodyJson;
+    expect(requestBody.language_code).toBe('es');
+    expect(requestBody.language_codes).toBeUndefined();
+  });
+
+  it('should warn when languageCodes is combined with languageCode or languageDetection', async () => {
+    prepareJsonResponse();
+
+    const result = await provider
+      .transcription('universal-3-5-pro')
+      .doGenerate({
+        audio: audioData,
+        mediaType: 'audio/wav',
+        providerOptions: {
+          assemblyai: {
+            languageCodes: ['en', 'es'],
+            languageCode: 'en',
+            languageDetection: true,
+          },
+        },
+      });
+
+    const requestBody = await server.calls[1].requestBodyJson;
+    expect(requestBody).toMatchObject({
+      language_codes: ['en', 'es'],
+      language_code: 'en',
+      language_detection: true,
+    });
+    expect(
+      result.warnings.some(
+        w => w.type === 'other' && w.message.includes('languageCodes'),
+      ),
+    ).toBe(true);
+  });
+
+  it('should surface language codes and detection options from the transcript response', async () => {
+    prepareJsonResponse({
+      transcript: {
+        language_codes: ['en', 'es'],
+        language_detection_options: {
+          code_switching: true,
+          code_switching_confidence_threshold: 0.4,
+          expected_languages: ['en', 'es'],
+        },
+      },
+    });
+
+    const result = await provider
+      .transcription('universal-3-5-pro')
+      .doGenerate({
+        audio: audioData,
+        mediaType: 'audio/wav',
+      });
+
+    expect(result.language).toBe('en_us');
+    expect(result.providerMetadata?.assemblyai).toMatchObject({
+      languageCodes: ['en', 'es'],
+      languageDetectionOptions: {
+        code_switching: true,
+        code_switching_confidence_threshold: 0.4,
+        expected_languages: ['en', 'es'],
+      },
+    });
   });
 
   it('should report segment timings in seconds (ms converted)', async () => {

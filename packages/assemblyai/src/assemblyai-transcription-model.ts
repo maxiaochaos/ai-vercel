@@ -126,6 +126,7 @@ export class AssemblyAITranscriptionModel implements TranscriptionModelV4 {
       body.iab_categories = assemblyaiOptions.iabCategories ?? undefined;
       body.language_code =
         (assemblyaiOptions.languageCode as never) ?? undefined;
+      body.language_codes = assemblyaiOptions.languageCodes ?? undefined;
       body.language_confidence_threshold =
         assemblyaiOptions.languageConfidenceThreshold ?? undefined;
       body.language_detection =
@@ -250,6 +251,17 @@ export class AssemblyAITranscriptionModel implements TranscriptionModelV4 {
           type: 'other',
           message:
             "'languageDetection' cannot be combined with an explicit 'languageCode'; AssemblyAI rejects requests that set both.",
+        });
+      }
+      if (
+        assemblyaiOptions.languageCodes != null &&
+        (assemblyaiOptions.languageCode != null ||
+          assemblyaiOptions.languageDetection)
+      ) {
+        warnings.push({
+          type: 'other',
+          message:
+            "'languageCodes' cannot be combined with 'languageCode' or 'languageDetection'; AssemblyAI rejects requests that set more than one of them.",
         });
       }
     }
@@ -416,6 +428,14 @@ export class AssemblyAITranscriptionModel implements TranscriptionModelV4 {
     if (transcript.auto_highlights_result != null) {
       assemblyaiMetadata.autoHighlightsResult = raw.auto_highlights_result;
     }
+    // Code-switching language list does not fit the single `language` field.
+    if (transcript.language_codes != null) {
+      assemblyaiMetadata.languageCodes = raw.language_codes;
+    }
+    if (transcript.language_detection_options != null) {
+      assemblyaiMetadata.languageDetectionOptions =
+        raw.language_detection_options;
+    }
 
     const lastWordEndMs = transcript.words?.at(-1)?.end;
 
@@ -473,6 +493,17 @@ const assemblyaiTranscriptionResponseSchema = z.object({
   status: z.enum(['queued', 'processing', 'completed', 'error']),
   text: z.string().nullish(),
   language_code: z.string().nullish(),
+  language_codes: z.array(z.string()).nullish(),
+  // Echoed when code switching / automatic language detection options were set.
+  // Loose so newer AssemblyAI fields do not fail parsing.
+  language_detection_options: z
+    .looseObject({
+      expected_languages: z.array(z.string()).nullish(),
+      fallback_language: z.string().nullish(),
+      code_switching: z.boolean().nullish(),
+      code_switching_confidence_threshold: z.number().nullish(),
+    })
+    .nullish(),
   speech_model_used: z.string().nullish(),
   words: z.array(assemblyaiWordSchema).nullish(),
   // Speaker-diarized utterances (present when `speaker_labels` is enabled).

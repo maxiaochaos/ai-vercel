@@ -197,6 +197,18 @@ export type AssemblyAITranscriptionAPITypes = {
     | 'yo';
 
   /**
+   * Language codes for code switching.
+   *
+   * Mutually exclusive with `language_code` and `language_detection`.
+   * On Universal-2, at most two codes are allowed and one must be `en`.
+   * On Universal-3.5 Pro, any number of supported languages may be set and
+   * English is not required.
+   *
+   * @see https://www.assemblyai.com/docs/pre-recorded-audio/code-switching
+   */
+  language_codes?: string[];
+
+  /**
    * The confidence threshold for the automatically detected language. An error will be returned if the language confidence is below this threshold.
    * @default 0
    */

@@ -83,6 +83,17 @@ export const assemblyaiTranscriptionModelOptionsSchema = z.object({
    */
   languageCode: z.union([z.literal('en'), z.string()]).nullish(),
   /**
+   * Language codes for code switching. Constrains transcription to this set.
+   *
+   * Mutually exclusive with `languageCode` and `languageDetection`.
+   * On Universal-2, at most two codes are allowed and one must be `en`.
+   * On Universal-3.5 Pro, any number of supported languages may be set and
+   * English is not required.
+   *
+   * @see https://www.assemblyai.com/docs/pre-recorded-audio/code-switching
+   */
+  languageCodes: z.array(z.string()).nullish(),
+  /**
    * Confidence threshold for language detection.
    */
   languageConfidenceThreshold: z.number().nullish(),

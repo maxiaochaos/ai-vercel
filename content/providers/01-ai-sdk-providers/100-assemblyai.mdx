@@ -178,7 +178,15 @@ The following provider options are available:
 
   Language code for the audio.
   Supports numerous ISO-639-1 and ISO-639-3 language codes.
-  Optional.
+  Optional. Mutually exclusive with `languageCodes` and `languageDetection`.
+
+- **languageCodes** _array of strings_
+
+  Language codes for code switching. Constrains transcription to this set.
+  On Universal-2, at most two codes are allowed and one must be `en`.
+  On Universal-3.5 Pro, any number of supported languages may be set and
+  English is not required.
+  Optional. Mutually exclusive with `languageCode` and `languageDetection`.
 
 - **languageConfidenceThreshold** _number_
 
@@ -188,7 +196,7 @@ The following provider options are available:
 - **languageDetection** _boolean_
 
   Whether to enable language detection.
-  Optional.
+  Optional. Mutually exclusive with `languageCode` and `languageCodes`.
 
 - **languageDetectionOptions** _object_
 
